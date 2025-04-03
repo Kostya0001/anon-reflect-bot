@@ -30,7 +30,22 @@ def save_data():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
-    if user_id not in participants or not participants[user_id].get("nick"):
+    if user_id not in participants or participants[user_id]["nick"] is None:
+        if text in ["🔸 Задающий", "🔹 Отвечающий"]:
+            await update.message.reply_text("⛔ Это кнопка, а не имя! Напиши уникальный ник.")
+            return
+        participants[user_id] = {"nick": text, "role": None, "answered": False}
+        save_data()
+        await update.message.reply_text(
+            f"Приятно познакомиться, {text}!\nКем хочешь быть?",
+            reply_markup=ReplyKeyboardMarkup(
+                [["🔸 Задающий"], ["🔹 Отвечающий"]],
+                one_time_keyboard=True,
+                resize_keyboard=True
+            )
+        )
+        return
+
         participants[user_id] = {"nick": None, "role": None, "answered": False}
         save_data()
         await update.message.reply_text("👤 Представься, Аноним:")
