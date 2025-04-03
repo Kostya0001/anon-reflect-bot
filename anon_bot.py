@@ -79,10 +79,13 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_data()
 
         question_text = f"❓ Вопрос от {participants[user_id]['nick']}:\n{text}"
-        # отправляем вопрос всем ответчикам
+        # отправляем вопрос всем ответчикам с просьбой ответить
         for uid, info in participants.items():
             if info.get("role") == "answerer":
-                await context.bot.send_message(chat_id=uid, text=question_text)
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text=f"Ответь на вопрос от {participants[user_id]['nick']}:\n{question_text}"
+                )
         # задающему тоже отправим для подтверждения
         await context.bot.send_message(chat_id=user_id, text=question_text)
 
@@ -101,8 +104,11 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         participants[user_id]["answered"] = True
         answers[user_id] = text
         save_data()
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-            text=f"💬 Ответ от {participants[user_id]['nick']}:\n{text}")
+
+        # Отправляем ответ всем участникам, чтобы все видели
+        answer_text = f"💬 Ответ от {participants[user_id]['nick']}:\n{text}"
+        for uid, info in participants.items():
+            await context.bot.send_message(chat_id=uid, text=answer_text)
         return
 
     # задающий выбирает ответ
@@ -157,6 +163,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
