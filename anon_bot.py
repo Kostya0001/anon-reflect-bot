@@ -19,12 +19,12 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-participants = {}  # user_id: {nick, role, answered, wins, accepted_rules}
+participants = {}
 asker_id = None
 current_question = None
 answers = {}
 DATA_FILE = "users.json"
-ANSWER_TIMEOUT = 300  # 5 минут
+ANSWER_TIMEOUT = 300
 answer_tasks = {}
 
 WELCOME_TEXT = """
@@ -62,7 +62,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
 
-    # Сброс данных при каждом старте
     participants[user_id] = {
         "nick": None,
         "role": None,
@@ -267,9 +266,11 @@ def main():
     app.add_handler(CallbackQueryHandler(accept_rules_callback, pattern="^accept_rules$"))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    @app.on_startup
-    async def setup_webhook(app):
+    # Установить webhook вручную перед запуском
+    async def setup():
         await app.bot.set_webhook(WEBHOOK_URL)
+
+    asyncio.run(setup())
 
     app.run_webhook(
         listen="0.0.0.0",
@@ -279,6 +280,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
