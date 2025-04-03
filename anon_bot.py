@@ -29,12 +29,10 @@ def save_data():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
-    if user_id not in participants or participants[user_id]["nick"] is None:
-        participants[user_id] = {"nick": None, "role": None, "answered": False}
-        save_data()
-        await update.message.reply_text("👤 Представься, Аноним:")
-    else:
-        await update.message.reply_text(f"С возвращением, {participants[user_id]['nick']}!")
+    # всегда сбрасываем ник при /start
+    participants[user_id] = {"nick": None, "role": None, "answered": False}
+    save_data()
+    await update.message.reply_text("👤 Представься, Аноним:")
 
 async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global asker_id, current_question, answers
@@ -56,13 +54,15 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # выбор роли
     if text == "🔸 Задающий":
-        if asker_id:
-            await update.message.reply_text("В этом раунде уже есть задающий.")
+        load_data()
+        if any(p.get("role") == "asker" for p in participants.values()):
+            await update.message.reply_text("⛔ В этом раунде уже есть задающий.")
             return
         participants[user_id]["role"] = "asker"
+        global asker_id
         asker_id = user_id
         save_data()
-        await update.message.reply_text("Напиши свой вопрос:")
+        await update.message.reply_text("✅ Ты стал задающим. Напиши свой вопрос:")
         return
 
     if text == "🔹 Отвечающий":
@@ -151,6 +151,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
