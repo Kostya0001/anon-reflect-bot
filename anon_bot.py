@@ -12,7 +12,7 @@ asker_id = None
 current_question = None
 answers = {}
 DATA_FILE = "users.json"
-ANSWER_TIMEOUT = 300
+ANSWER_TIMEOUT = 300  # 5 minutes timeout
 answer_tasks = {}
 
 def load_data():
@@ -122,10 +122,15 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Не понял. Пожалуйста, следуй инструкциям.")
 
 async def drop_if_silent(user_id, context):
-    await asyncio.sleep(ANSWER_TIMEOUT)
+    await asyncio.sleep(ANSWER_TIMEOUT)  # 5 минут
     if not participants[user_id]["answered"]:
         participants[user_id]["role"] = None
         await context.bot.send_message(chat_id=user_id, text="⏰ Время вышло, ты выбыл из раунда.")
+    else:
+        # автоматически завершение раунда после 5 минут без выбора победителя
+        if current_question and asker_id == user_id:  # если мы ещё в процессе
+            await context.bot.send_message(chat_id=user_id, text="⏰ Время вышло для выбора победителя, раунд завершён!")
+            await new_round(context)
 
 async def new_round(context):
     global asker_id, current_question, answers, answer_tasks
@@ -163,6 +168,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
