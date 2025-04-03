@@ -62,7 +62,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
 
-    # Сброс данных пользователя при каждом старте
+    # Сброс данных при каждом старте
     participants[user_id] = {
         "nick": None,
         "role": None,
@@ -261,10 +261,16 @@ async def new_round(context):
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_text))
     app.add_handler(CallbackQueryHandler(accept_rules_callback, pattern="^accept_rules$"))
     app.add_handler(CallbackQueryHandler(button_handler))
+
+    @app.on_startup
+    async def setup_webhook(app):
+        await app.bot.set_webhook(WEBHOOK_URL)
+
     app.run_webhook(
         listen="0.0.0.0",
         port=10000,
@@ -273,6 +279,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
