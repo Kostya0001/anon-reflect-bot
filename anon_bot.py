@@ -4,7 +4,6 @@ import asyncio
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, CommandHandler, filters
 
-
 TOKEN = os.getenv("TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
@@ -31,21 +30,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
     if user_id not in participants or participants[user_id]["nick"] is None:
-        if text in ["🔸 Задающий", "🔹 Отвечающий"]:
-            await update.message.reply_text("⛔ Это кнопка, а не имя! Напиши уникальный ник.")
-            return
-        participants[user_id] = {"nick": text, "role": None, "answered": False}
-        save_data()
-        await update.message.reply_text(
-            f"Приятно познакомиться, {text}!\nКем хочешь быть?",
-            reply_markup=ReplyKeyboardMarkup(
-                [["🔸 Задающий"], ["🔹 Отвечающий"]],
-                one_time_keyboard=True,
-                resize_keyboard=True
-            )
-        )
-        return
-
         participants[user_id] = {"nick": None, "role": None, "answered": False}
         save_data()
         await update.message.reply_text("👤 Представься, Аноним:")
@@ -60,6 +44,9 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # представление
     if user_id not in participants or participants[user_id]["nick"] is None:
+        if text in ["🔸 Задающий", "🔹 Отвечающий"]:
+            await update.message.reply_text("⛔ Это кнопка, а не имя! Напиши уникальный ник.")
+            return
         participants[user_id] = {"nick": text, "role": None, "answered": False}
         save_data()
         await update.message.reply_text(f"Приятно познакомиться, {text}!\nКем хочешь быть?",
@@ -164,6 +151,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
