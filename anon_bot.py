@@ -51,7 +51,7 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             one_time_keyboard=True, resize_keyboard=True))
         return
 
-    # Проверка на изменение роли только если это не обычная ситуация (ответ на вопрос, ожидание вопроса)
+    # Запрещаем менять роли, если они уже распределены
     if current_question and participants[user_id]["role"] is not None and text in ["🔸 Задающий", "🔹 Отвечающий"]:
         await update.message.reply_text("⛔ Роли уже распределены. Ты не можешь менять роль в этом раунде.")
         return
@@ -173,6 +173,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
