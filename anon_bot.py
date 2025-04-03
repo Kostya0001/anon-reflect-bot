@@ -62,27 +62,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
 
-    if user_id not in participants:
-        participants[user_id] = {
-            "nick": None,
-            "role": None,
-            "answered": False,
-            "wins": 0,
-            "accepted_rules": False
-        }
-        save_data()
+    # Сброс данных пользователя при каждом старте
+    participants[user_id] = {
+        "nick": None,
+        "role": None,
+        "answered": False,
+        "wins": 0,
+        "accepted_rules": False
+    }
+    save_data()
 
-    if not participants[user_id].get("accepted_rules", False):
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔓 Я понял", callback_data="accept_rules")]
-        ])
-        await update.message.reply_text(WELCOME_TEXT, reply_markup=keyboard)
-    else:
-        nick = participants[user_id].get("nick")
-        if nick:
-            await update.message.reply_text(f"👋 С возвращением, {nick}!")
-        else:
-            await update.message.reply_text("👤 Представься, Аноним:")
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔓 Я понял", callback_data="accept_rules")]
+    ])
+    await update.message.reply_text(WELCOME_TEXT, reply_markup=keyboard)
 
 async def accept_rules_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -280,6 +273,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
