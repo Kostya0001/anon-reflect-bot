@@ -156,11 +156,16 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_question))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_answer))
 
-    app.run_webhook(
+import os
+
+PORT = int(os.environ.get("PORT", 8443))
+
+app.run_webhook(
     listen="0.0.0.0",
-    port=10000,
+    port=PORT,
     webhook_url=WEBHOOK_URL
 )
+
 
 
 
