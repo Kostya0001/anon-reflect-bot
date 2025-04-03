@@ -266,11 +266,11 @@ def main():
     app.add_handler(CallbackQueryHandler(accept_rules_callback, pattern="^accept_rules$"))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Установить webhook вручную перед запуском
-    async def setup():
-        await app.bot.set_webhook(WEBHOOK_URL)
+    # Установка webhook сразу после инициализации
+    async def post_init(application):
+        await application.bot.set_webhook(WEBHOOK_URL)
 
-    asyncio.run(setup())
+    app.post_init = post_init
 
     app.run_webhook(
         listen="0.0.0.0",
@@ -280,6 +280,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
