@@ -157,10 +157,10 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_answer))
 
     app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 10000)),
-        webhook_url=WEBHOOK_URL,
-    )
+    listen="0.0.0.0",
+    port=10000,
+    webhook_url=WEBHOOK_URL
+)
 
 
 
