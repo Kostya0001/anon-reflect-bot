@@ -22,6 +22,26 @@ DATA_FILE = "users.json"
 ANSWER_TIMEOUT = 300  # 5 минут
 answer_tasks = {}
 
+WELCOME_TEXT = """
+🎭 Добро пожаловать в Анонимную Игру! 
+
+Здесь ты можешь:
+– задавать вопросы незнакомцам,  
+– получать неожиданные ответы,  
+– почувствовать себя маской с характером.
+
+Но прежде чем ты нажмёшь /start – вот **несколько ПРАВИЛ**: 
+
+🚫 Не пытайся вычислить, кто есть кто.  
+🚫 Не пиши своё настоящее имя – будь кем угодно, хоть Устрицей Гнева.  
+🚫 Не флууди, не молчи, не груби.  
+
+А главное:  
+✅ Играй честно, слушай внимательно и выбирай душой.
+
+Когда готов – пиши /start и представься как Аноним.
+"""
+
 def load_data():
     global participants
     if os.path.exists(DATA_FILE):
@@ -53,6 +73,11 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
     text = update.message.text.strip()
+
+    # Показываем правила, если участник пишет что-то до /start
+    if user_id not in participants and text.lower() != "/start":
+        await update.message.reply_text(WELCOME_TEXT)
+        return
 
     if user_id not in participants or participants[user_id]["nick"] is None:
         if text in ["🔸 Задающий", "🔹 Отвечающий"]:
@@ -179,7 +204,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def drop_if_silent(user_id, context):
     await asyncio.sleep(ANSWER_TIMEOUT)
 
-    # Проверка: если раунд все ещё активен и задающий не выбрал победителя
     if participants.get(user_id, {}).get("role") == "asker" and current_question:
         for uid in participants:
             try:
@@ -228,6 +252,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
