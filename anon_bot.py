@@ -5,7 +5,7 @@ from telegram.ext import (
     CommandHandler, MessageHandler, filters
 )
 
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
