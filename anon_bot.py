@@ -157,10 +157,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chosen_id = int(data.replace("choose_", ""))
         chosen_nick = participants.get(chosen_id, {}).get("nick", "неизвестный")
 
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text=f"✅ {chosen_nick} дал лучший ответ!"
-        )
+        # 🔽 Рассылаем всем участникам
+        for uid in participants:
+            try:
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text=f"✅ {chosen_nick} дал лучший ответ!"
+                )
+            except:
+                pass
+
         await new_round(context)
 
 async def drop_if_silent(user_id, context):
