@@ -85,9 +85,13 @@ async def accept_rules_callback(update: Update, context: ContextTypes.DEFAULT_TY
     save_data()
 
     await query.message.delete()
+
+    # Считаем игроков, у которых уже есть nick (онлайн)
+    online_count = sum(1 for p in participants.values() if p.get("nick"))
+
     await context.bot.send_message(
         chat_id=user_id,
-        text="👤 Представься, Аноним:"
+        text=f"👤 Представься, Аноним:\n\n🎮 Сейчас в онлайне: {online_count} игроков"
     )
 
 async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -266,7 +270,6 @@ def main():
     app.add_handler(CallbackQueryHandler(accept_rules_callback, pattern="^accept_rules$"))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Установка webhook сразу после инициализации
     async def post_init(application):
         await application.bot.set_webhook(WEBHOOK_URL)
 
@@ -280,6 +283,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
