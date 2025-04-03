@@ -44,7 +44,7 @@ WELCOME_TEXT = """
 А главное:  
 ✅ Играй честно, слушай внимательно и выбирай душой.
 
-Когда готов – нажми кнопку ниже 👇
+Когда готов(а) – нажми кнопку ниже 👇
 """
 
 def load_data():
@@ -72,7 +72,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_data()
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔓 Я понял", callback_data="accept_rules")]
+        [InlineKeyboardButton("🔓 Я понял(а)", callback_data="accept_rules")]
     ])
     await update.message.reply_text(WELCOME_TEXT, reply_markup=keyboard)
 
