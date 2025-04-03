@@ -14,7 +14,7 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-participants = {}  # user_id: {nick, role, answered}
+participants = {}  # user_id: {nick, role, answered, wins}
 asker_id = None
 current_question = None
 answers = {}
@@ -36,9 +36,17 @@ def save_data():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
-    participants[user_id] = {"nick": None, "role": None, "answered": False}
-    save_data()
-    await update.message.reply_text("👤 Представься, Аноним:")
+
+    if user_id not in participants:
+        participants[user_id] = {"nick": None, "role": None, "answered": False, "wins": 0}
+        save_data()
+        await update.message.reply_text("👤 Представься, Аноним:")
+    else:
+        nick = participants[user_id].get("nick")
+        if nick:
+            await update.message.reply_text(f"👋 С возвращением, {nick}!")
+        else:
+            await update.message.reply_text("👤 Представься, Аноним:")
 
 async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global asker_id, current_question, answers
@@ -50,7 +58,7 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text in ["🔸 Задающий", "🔹 Отвечающий"]:
             await update.message.reply_text("⛔ Это кнопка, а не имя! Напиши уникальный ник.")
             return
-        participants[user_id] = {"nick": text, "role": None, "answered": False}
+        participants[user_id] = {"nick": text, "role": None, "answered": False, "wins": 0}
         save_data()
         await update.message.reply_text(
             f"Приятно познакомиться, {text}!\nКем хочешь быть?",
@@ -126,7 +134,6 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for uid in participants:
             await context.bot.send_message(chat_id=uid, text=answer_text)
 
-        # Обновляем список кнопок для задающего
         if asker_id and asker_id in participants:
             buttons = [
                 [InlineKeyboardButton(participants[uid]["nick"], callback_data=f"choose_{uid}")]
@@ -157,12 +164,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chosen_id = int(data.replace("choose_", ""))
         chosen_nick = participants.get(chosen_id, {}).get("nick", "неизвестный")
 
-        # 🔽 Рассылаем всем участникам
+        participants[chosen_id]["wins"] = participants[chosen_id].get("wins", 0) + 1
+        save_data()
+
+        win_count = participants[chosen_id]["wins"]
+
         for uid in participants:
             try:
                 await context.bot.send_message(
                     chat_id=uid,
-                    text=f"✅ {chosen_nick} дал лучший ответ!"
+                    text=f"✅ {chosen_nick} дал лучший ответ! 🏆 Побед: {win_count}"
                 )
             except:
                 pass
@@ -216,6 +227,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
