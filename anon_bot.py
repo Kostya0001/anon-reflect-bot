@@ -77,6 +77,7 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⛔ В этом раунде уже есть задающий.")
             return
         participants[user_id]["role"] = "asker"
+        global asker_id
         asker_id = user_id
         save_data()
         await update.message.reply_text("✅ Ты стал задающим. Напиши свой вопрос:")
@@ -94,10 +95,6 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     chat_id=user_id,
                     text=f"Ответь на вопрос от {asker_nick}:\n❓ {current_question}"
                 )
-                task = asyncio.create_task(drop_if_silent(user_id, context))
-                answer_tasks[user_id] = task
-            else:
-                await update.message.reply_text("Жди вопрос.")
         else:
             await update.message.reply_text("Ты уже Отвечающий.")
         return
@@ -116,10 +113,9 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
         await context.bot.send_message(chat_id=user_id, text=question_text)
 
-        for uid, info in participants.items():
-            if info.get("role") == "answerer":
-                task = asyncio.create_task(drop_if_silent(uid, context))
-                answer_tasks[uid] = task
+        # запускаем таймер на весь раунд
+        task = asyncio.create_task(drop_if_silent(user_id, context))
+        answer_tasks[user_id] = task
         return
 
     if participants[user_id].get("role") == "answerer" and current_question:
@@ -182,10 +178,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def drop_if_silent(user_id, context):
     await asyncio.sleep(ANSWER_TIMEOUT)
-    if participants[user_id].get("role") == "answerer" and not participants[user_id]["answered"]:
-        participants[user_id]["role"] = None
-        await context.bot.send_message(chat_id=user_id, text="⏰ Время вышло, ты выбыл из раунда.")
-    save_data()
+
+    # Проверка: если раунд все ещё активен и задающий не выбрал победителя
+    if participants.get(user_id, {}).get("role") == "asker" and current_question:
+        for uid in participants:
+            try:
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text="⏰ Время вышло! Задающий не выбрал победителя. Раунд завершён."
+                )
+            except:
+                pass
+        await new_round(context)
 
 async def new_round(context):
     global asker_id, current_question, answers, answer_tasks
@@ -224,6 +228,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
