@@ -1,135 +1,124 @@
 import os
 import json
 import asyncio
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
 TOKEN = os.getenv("TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-participants = {}
+participants = {}  # user_id: {nick, role, answered}
 asker_id = None
 current_question = None
 answers = {}
-answer_tasks = {}
 DATA_FILE = "users.json"
-ANSWER_TIMEOUT = 300  # 5 минут
+ANSWER_TIMEOUT = 300
+answer_tasks = {}
 
-def load_participants():
+def load_data():
     global participants
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             participants = json.load(f)
-            for uid in list(participants.keys()):
-                participants[int(uid)] = participants.pop(uid)
+            participants = {int(k): v for k, v in participants.items()}
 
-def save_participants():
+def save_data():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(participants, f, ensure_ascii=False, indent=2)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    load_data()
     if user_id not in participants or not participants[user_id].get("nick"):
         participants[user_id] = {"nick": None, "role": None, "answered": False}
+        save_data()
         await update.message.reply_text("👤 Представься, Аноним:")
     else:
         await update.message.reply_text(f"С возвращением, {participants[user_id]['nick']}!")
 
-async def handle_nick(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if participants.get(user_id, {}).get("nick"):
-        return
-    participants[user_id]["nick"] = update.message.text.strip()
-    save_participants()
-    await update.message.reply_text(
-        "🎭 Кем ты хочешь быть в этом раунде?",
-        reply_markup=ReplyKeyboardMarkup([["🔸 Задающий"], ["🔹 Отвечающий"]],
-                                         one_time_keyboard=True,
-                                         resize_keyboard=True)
-    )
-
-async def handle_role(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global asker_id, current_question, answers
-    user_id = update.effective_user.id
-    text = update.message.text
-    if user_id not in participants or not participants[user_id].get("nick"):
-        return
-    if participants[user_id]["role"]:
-        return
-    if text == "🔸 Задающий":
-        if asker_id is None:
-            participants[user_id]["role"] = "asker"
-            asker_id = user_id
-            await update.message.reply_text("✍️ Напиши свой вопрос:")
-        else:
-            await update.message.reply_text("Уже есть задающий. Ты автоматически становишься отвечающим.")
-            participants[user_id]["role"] = "answerer"
-    elif text == "🔹 Отвечающий":
-        participants[user_id]["role"] = "answerer"
-        await update.message.reply_text("Ты Отвечающий. Жди вопрос.")
 
-async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global current_question, answers
     user_id = update.effective_user.id
-    text = update.message.text
-    if user_id == asker_id and not current_question:
+    text = update.message.text.strip()
+
+    # представление
+    if user_id not in participants or participants[user_id]["nick"] is None:
+        participants[user_id] = {"nick": text, "role": None, "answered": False}
+        save_data()
+        await update.message.reply_text(f"Приятно познакомиться, {text}!\nКем хочешь быть?",
+            reply_markup=ReplyKeyboardMarkup([["🔸 Задающий"], ["🔹 Отвечающий"]],
+            one_time_keyboard=True, resize_keyboard=True))
+        return
+
+    # выбор роли
+    if text == "🔸 Задающий":
+        if asker_id:
+            await update.message.reply_text("В этом раунде уже есть задающий.")
+            return
+        participants[user_id]["role"] = "asker"
+        asker_id = user_id
+        save_data()
+        await update.message.reply_text("Напиши свой вопрос:")
+        return
+
+    if text == "🔹 Отвечающий":
+        if participants[user_id].get("role") != "answerer":
+            participants[user_id]["role"] = "answerer"
+            participants[user_id]["answered"] = False
+            save_data()
+        await update.message.reply_text("Ты Отвечающий. Жди вопрос.")
+        return
+
+    # задающий пишет вопрос
+    if participants[user_id].get("role") == "asker" and current_question is None:
         current_question = text
         answers = {}
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+            text=f"❓ Вопрос от {participants[user_id]['nick']}:\n{text}")
+
+        # запускаем таймер
         for uid, info in participants.items():
             if info.get("role") == "answerer":
-                await context.bot.send_message(chat_id=uid, text=f"❓ Вопрос от {participants[asker_id]['nick']}:\n{text}")
-                task = asyncio.create_task(answer_timer(uid, context))
+                task = asyncio.create_task(drop_if_silent(uid, context))
                 answer_tasks[uid] = task
-        await update.message.reply_text("Вопрос отправлен! Ждём ответы.")
-
-async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    text = update.message.text
-    if current_question and participants.get(user_id, {}).get("role") == "answerer":
-        answers[user_id] = text
-        participants[user_id]["answered"] = True
-        if user_id in answer_tasks:
-            answer_tasks[user_id].cancel()
-        await context.bot.send_message(chat_id=asker_id,
-                                       text=f"💬 Ответ от {participants[user_id]['nick']}:\n{text}",
-                                       reply_markup=InlineKeyboardMarkup([[
-                                           InlineKeyboardButton(f"Выбрать ответ от {participants[user_id]['nick']}",
-                                                                callback_data=f"select_{user_id}")
-                                       ]]))
-
-async def answer_timer(uid, context):
-    try:
-        await asyncio.sleep(ANSWER_TIMEOUT)
-        if uid not in answers:
-            await context.bot.send_message(chat_id=uid, text="⏰ Время вышло! Ты выбыл из раунда.")
-    except asyncio.CancelledError:
-        pass
-
-async def handle_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global asker_id, current_question, answers, answer_tasks
-    query = update.callback_query
-    await query.answer()
-    user_id = update.effective_user.id
-    if user_id != asker_id:
-        await query.edit_message_text("Только задающий может выбирать ответ.")
         return
-    selected_uid = int(query.data.replace("select_", ""))
-    winner_nick = participants[selected_uid]["nick"]
-    await context.bot.send_message(chat_id=asker_id, text=f"🎉 Ты выбрал ответ от {winner_nick}!")
-    for uid in participants:
-        if uid != asker_id:
-            try:
-                await context.bot.send_message(chat_id=uid, text=f"🎉 Победил ответ от {winner_nick}!")
-            except:
-                pass
-    await new_round(context)
 
-async def new_round(context: ContextTypes.DEFAULT_TYPE):
+    # отвечающий пишет ответ
+    if participants[user_id].get("role") == "answerer" and current_question:
+        if participants[user_id]["answered"]:
+            await update.message.reply_text("Ты уже ответил.")
+            return
+        participants[user_id]["answered"] = True
+        answers[user_id] = text
+        save_data()
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+            text=f"💬 Ответ от {participants[user_id]['nick']}:\n{text}")
+        return
+
+    # задающий выбирает ответ
+    if participants[user_id].get("role") == "asker" and current_question and text in [participants[uid]['nick'] for uid in answers]:
+        chosen_id = [uid for uid, data in participants.items() if data['nick'] == text][0]
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+            text=f"✅ {participants[chosen_id]['nick']} дал лучший ответ!")
+        await new_round(context)
+        return
+
+    await update.message.reply_text("Не понял. Пожалуйста, следуй инструкциям.")
+
+async def drop_if_silent(user_id, context):
+    await asyncio.sleep(ANSWER_TIMEOUT)
+    if not participants[user_id]["answered"]:
+        participants[user_id]["role"] = None
+        await context.bot.send_message(chat_id=user_id, text="⏰ Время вышло, ты выбыл из раунда.")
+
+async def new_round(context):
     global asker_id, current_question, answers, answer_tasks
     asker_id = None
     current_question = None
     answers = {}
-    answer_tasks.clear()
+    answer_tasks = {}
+
     for uid in participants:
         participants[uid]["role"] = None
         participants[uid]["answered"] = False
@@ -145,26 +134,19 @@ async def new_round(context: ContextTypes.DEFAULT_TYPE):
             )
         except:
             pass
+    save_data()
 
 def main():
-    load_participants()
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_selection))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nick))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_role))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_question))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_answer))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_text))
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=10000,
+        webhook_url=WEBHOOK_URL
+    )
 
-import os
-
-PORT = int(os.environ.get("PORT", 8443))
-
-app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    webhook_url=WEBHOOK_URL
-)
+if __name__ == "__main__":
+    main()
 
 
 
