@@ -29,7 +29,6 @@ def save_data():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     load_data()
-    # всегда сбрасываем ник при /start
     participants[user_id] = {"nick": None, "role": None, "answered": False}
     save_data()
     await update.message.reply_text("👤 Представься, Аноним:")
@@ -74,13 +73,13 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # задающий пишет вопрос
-    if participants[user_id].get("role") == "asker" and current_question is None:
+    if current_question is None and participants.get(user_id, {}).get("role") == "asker":
         current_question = text
         answers = {}
+        save_data()
         await context.bot.send_message(chat_id=update.effective_chat.id,
             text=f"❓ Вопрос от {participants[user_id]['nick']}:\n{text}")
 
-        # запускаем таймер
         for uid, info in participants.items():
             if info.get("role") == "answerer":
                 task = asyncio.create_task(drop_if_silent(uid, context))
@@ -151,6 +150,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
