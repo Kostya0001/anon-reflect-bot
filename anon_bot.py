@@ -148,17 +148,19 @@ async def new_round(context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     load_participants()
-    app = ApplicationBuilder().token(TOKEN).webhook_url(WEBHOOK_URL).build()
+    app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_selection))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_nick))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_role))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_question))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_answer))
-    app.run_webhook()
 
-if __name__ == "__main__":
-    main()
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+        webhook_url=WEBHOOK_URL,
+    )
 
 
 
