@@ -182,13 +182,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def drop_if_silent(user_id, context):
     await asyncio.sleep(ANSWER_TIMEOUT)
-    if not participants[user_id]["answered"]:
+    if participants[user_id].get("role") == "answerer" and not participants[user_id]["answered"]:
         participants[user_id]["role"] = None
         await context.bot.send_message(chat_id=user_id, text="⏰ Время вышло, ты выбыл из раунда.")
-    else:
-        if current_question and asker_id == user_id:
-            await context.bot.send_message(chat_id=user_id, text="⏰ Время вышло для выбора победителя, раунд завершён!")
-            await new_round(context)
+    save_data()
 
 async def new_round(context):
     global asker_id, current_question, answers, answer_tasks
@@ -227,6 +224,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
