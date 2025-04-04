@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 anon_bot_fixed.py
+python3 anon_bot_named.py
