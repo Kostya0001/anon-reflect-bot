@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 anon_bot.py
+python3 anon_bot_logged.py
