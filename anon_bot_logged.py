@@ -8,12 +8,23 @@ from telegram import (
     ReplyKeyboardMarkup
 )
 from telegram.ext import (
+import logging
     ApplicationBuilder,
     ContextTypes,
     MessageHandler,
     CommandHandler,
     CallbackQueryHandler,
     filters
+)
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s — %(levelname)s — %(message)s",
+    handlers=[
+        logging.FileHandler("log.txt", encoding="utf-8"),
+        logging.StreamHandler()
+    ]
 )
 
 TOKEN = os.getenv("TOKEN")
@@ -59,6 +70,7 @@ def save_data():
         json.dump(participants, f, ensure_ascii=False, indent=2)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info(f"Новый /start от {update.effective_user.id}")
     user_id = update.effective_user.id
     load_data()
 
@@ -77,6 +89,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(WELCOME_TEXT, reply_markup=keyboard)
 
 async def accept_rules_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info(f"{update.callback_query.from_user.id} подтвердил правила")
     query = update.callback_query
     user_id = query.from_user.id
     await query.answer()
@@ -95,6 +108,7 @@ async def accept_rules_callback(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info(f"[{update.effective_user.id}] сообщение: {update.message.text.strip()}")
     global asker_id, current_question, answers
 
     user_id = update.effective_user.id
@@ -194,6 +208,7 @@ async def handle_all_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Не понял. Пожалуйста, следуй инструкциям.")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info(f"Кнопка нажата пользователем {update.callback_query.from_user.id}: {update.callback_query.data}")
     global answers
     query = update.callback_query
     await query.answer()
@@ -263,6 +278,7 @@ async def new_round(context):
     save_data()
 
 def main():
+    logging.info("🚀 Бот запускается...")
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
